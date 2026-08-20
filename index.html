@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Território — Controle de Equipes de Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0F2A57;
+    --navy-light:#1B3F7A;
+    --gold:#1E62E0;
+    --gold-deep:#123B96;
+    --sky:#EAF1FC;
+    --graphite:#14171C;
+    --ivory:#F5F6F8;
+    --white:#ffffff;
+    --danger:#a3403a;
+    --ok:#2f7d52;
+    --radius:14px;
+    --shadow:0 2px 10px rgba(15,42,87,0.10);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--ivory); color:var(--graphite); font-family:'Inter',sans-serif; height:100%;}
+  h1,h2,h3,.display{font-family:'Fraunces',serif;}
+  button{font-family:inherit; cursor:pointer;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  #app{max-width:480px; margin:0 auto; min-height:100vh; background:var(--ivory); display:flex; flex-direction:column; position:relative;}
+
+  /* Header */
+  header.top{
+    background:linear-gradient(160deg, var(--navy) 0%, var(--navy-light) 100%);
+    color:var(--white); padding:22px 20px 18px; position:sticky; top:0; z-index:20;
+  }
+  header.top .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); margin:0 0 4px;}
+  header.top h1{font-size:24px; font-weight:600; margin:0 0 12px; letter-spacing:-.01em;}
+  .agente-scroll{display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none;}
+  .agente-scroll::-webkit-scrollbar{display:none;}
+  .agente-chip{
+    flex:0 0 auto; padding:7px 13px; border-radius:100px; border:1px solid rgba(255,255,255,0.25);
+    background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.85); font-size:12.5px; font-weight:500;
+    display:flex; align-items:center; gap:6px; white-space:nowrap;
+  }
+  .agente-chip .dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
+  .agente-chip.active{background:var(--gold); border-color:var(--gold); color:var(--navy); font-weight:600;}
+
+  main{flex:1; padding:18px 16px 96px;}
+  .section-title{font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-deep); font-weight:600; margin:0 0 10px; font-family:'IBM Plex Mono',monospace;}
+
+  /* Home / dashboard */
+  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:22px;}
+  .stat-card{background:var(--white); border-radius:var(--radius); padding:14px 10px; text-align:center; box-shadow:var(--shadow);}
+  .stat-card .num{display:block; font-family:'Fraunces',serif; font-size:26px; font-weight:600; color:var(--navy);}
+  .stat-card .lbl{font-size:10.5px; color:#6b6b6b; text-transform:uppercase; letter-spacing:.05em;}
+
+  .bairro-card{
+    background:var(--white); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow);
+    border-left:4px solid var(--gold);
+  }
+  .bairro-card .row-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .bairro-card h3{margin:0 0 3px; font-size:17px; color:var(--navy);}
+  .bairro-card .meta{font-size:12px; color:#7a7a7a;}
+  .bairro-card .count-badge{background:var(--sky); color:var(--navy); font-size:11.5px; font-weight:600; padding:4px 9px; border-radius:100px; white-space:nowrap;}
+  .bairro-card .agente-tags{display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;}
+  .agente-tag{font-size:10.5px; padding:3px 8px; border-radius:6px; font-weight:600; color:var(--white);}
+
+  .card-btn{background:none; border:none; text-align:left; width:100%; padding:0;}
+
+  /* Member row */
+  .member-row{
+    display:flex; align-items:center; gap:11px; background:var(--white); border-radius:12px; padding:11px 12px; margin-bottom:8px; box-shadow:var(--shadow);
+  }
+  .avatar{
+    width:38px; height:38px; border-radius:50%; background:var(--sky); color:var(--navy); font-weight:700; font-size:14px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:'Fraunces',serif;
+  }
+  .avatar.coord-bairro{background:var(--gold); color:var(--navy);}
+  .avatar.coord-territorio{background:var(--navy); color:var(--white);}
+  .member-info{flex:1; min-width:0;}
+  .member-info .name{font-size:14.5px; font-weight:600; color:var(--graphite); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .role-badge{display:inline-block; font-size:10px; font-weight:600; padding:2px 7px; border-radius:5px; margin-top:2px; text-transform:uppercase; letter-spacing:.03em;}
+  .role-badge.comum{background:var(--sky); color:var(--navy-light);}
+  .role-badge.coord_bairro{background:#fbf0d9; color:var(--gold-deep);}
+  .role-badge.coord_territorio{background:var(--navy); color:var(--white);}
+  .member-actions{display:flex; gap:6px; flex-shrink:0;}
+  .icon-btn{
+    width:32px; height:32px; border-radius:9px; border:1px solid #e4e0d4; background:var(--white);
+    display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--navy);
+  }
+  .icon-btn.whatsapp{color:#3f7d52; border-color:#cfe6d6;}
+  .icon-btn.edit{color:var(--gold-deep);}
+  .icon-btn.remove{color:var(--danger);}
+
+  .empty-state{text-align:center; padding:40px 20px; color:#8a8a8a;}
+  .empty-state .glyph{font-size:30px; margin-bottom:8px;}
+
+  .fab{
+    position:fixed; bottom:88px; right:calc(50% - 240px + 20px); max-width:480px;
+    width:52px; height:52px; border-radius:50%; background:var(--gold); color:var(--navy); border:none;
+    font-size:24px; box-shadow:0 4px 14px rgba(200,168,75,0.5); display:flex; align-items:center; justify-content:center; z-index:30;
+  }
+  @media (max-width:520px){.fab{right:20px;}}
+
+  /* Bottom nav */
+  nav.bottom{
+    position:sticky; bottom:0; left:0; right:0; background:var(--white); border-top:1px solid #e9e5d9;
+    display:flex; justify-content:space-around; padding:8px 4px 10px; z-index:20;
+  }
+  nav.bottom button{
+    background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px;
+    color:#a3a3a3; font-size:10.5px; font-weight:600; padding:4px 8px; border-radius:10px;
+  }
+  nav.bottom button .ic{font-size:19px;}
+  nav.bottom button.active{color:var(--navy);}
+  nav.bottom button.active .ic{color:var(--gold-deep);}
+
+  /* Modal */
+  .overlay{position:fixed; inset:0; background:rgba(26,43,94,0.45); display:none; align-items:flex-end; justify-content:center; z-index:50;}
+  .overlay.open{display:flex;}
+  .sheet{
+    background:var(--white); width:100%; max-width:480px; border-radius:20px 20px 0 0; padding:22px 20px 26px;
+    max-height:85vh; overflow-y:auto; animation:slideup .22s ease;
+  }
+  @keyframes slideup{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet h2{margin:0 0 16px; font-size:19px; color:var(--navy);}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; font-weight:600; color:#6b6b6b; margin-bottom:5px; text-transform:uppercase; letter-spacing:.03em;}
+  .field input, .field select{
+    width:100%; padding:11px 12px; border-radius:10px; border:1.5px solid #e4e0d4; font-size:14.5px; font-family:'Inter',sans-serif; background:var(--ivory);
+  }
+  .field input:focus, .field select:focus{outline:none; border-color:var(--gold);}
+  .sheet-actions{display:flex; gap:10px; margin-top:18px;}
+  .btn{flex:1; padding:13px; border-radius:11px; border:none; font-weight:600; font-size:14.5px;}
+  .btn.primary{background:var(--navy); color:var(--white);}
+  .btn.ghost{background:var(--sky); color:var(--navy);}
+
+  /* Frequencia */
+  .freq-toolbar{display:flex; gap:8px; margin-bottom:14px;}
+  .freq-toolbar select, .freq-toolbar input{flex:1; padding:10px 11px; border-radius:10px; border:1.5px solid #e4e0d4; background:var(--white); font-size:13.5px; font-family:inherit;}
+  .freq-row{display:flex; align-items:center; gap:10px; background:var(--white); padding:10px 12px; border-radius:12px; margin-bottom:7px; box-shadow:var(--shadow);}
+  .freq-row .name{flex:1; font-size:14px; font-weight:500;}
+  .toggle-group{display:flex; border-radius:9px; overflow:hidden; border:1.5px solid #e4e0d4;}
+  .toggle-group button{border:none; padding:6px 11px; font-size:11.5px; font-weight:700; background:var(--white); color:#9a9a9a;}
+  .toggle-group button.p.active{background:var(--ok); color:var(--white);}
+  .toggle-group button.f.active{background:var(--danger); color:var(--white);}
+  .freq-summary{font-size:12.5px; color:#6b6b6b; margin-bottom:12px; font-family:'IBM Plex Mono',monospace;}
+  .note-box{background:var(--sky); border-radius:12px; padding:12px 14px; font-size:12.5px; color:var(--navy-light); line-height:1.5; margin-top:16px;}
+
+  .coord-block{background:var(--white); border-radius:var(--radius); padding:15px 16px; margin-bottom:12px; box-shadow:var(--shadow);}
+  .coord-block .row-top{display:flex; gap:12px; align-items:center;}
+  .coord-block .bairros-cover{display:flex; flex-wrap:wrap; gap:5px; margin-top:10px;}
+  .coverage-tag{font-size:11px; background:var(--sky); color:var(--navy-light); padding:3px 9px; border-radius:6px; font-weight:600;}
+
+  ::selection{background:var(--gold); color:var(--navy);}
+</style>
+</head>
+<body>
+<div id="lockScreen" style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(160deg, var(--navy) 0%, var(--navy-light) 100%); padding:24px;">
+  <div style="background:var(--white); border-radius:20px; padding:32px 26px; width:100%; max-width:340px; box-shadow:0 10px 30px rgba(15,42,87,0.25); text-align:center;">
+    <h1 style="margin:0 0 6px; font-size:22px; color:var(--navy);">Território</h1>
+    <p style="margin:0 0 22px; font-size:13px; color:#6b6b6b;">Digite o PIN de acesso</p>
+    <input id="pinInput" type="text" placeholder="Senha de acesso" maxlength="40" autocapitalize="off" autocorrect="off"
+      style="width:100%; text-align:center; letter-spacing:.03em; font-size:17px; padding:14px; border-radius:12px; border:1.5px solid #e4e0d4; background:var(--ivory); font-family:'IBM Plex Mono',monospace;">
+    <p id="pinError" style="color:var(--danger); font-size:12.5px; margin:10px 0 0; min-height:16px;"></p>
+    <button id="pinBtn" class="btn primary" style="width:100%; margin-top:14px; padding:13px;">Entrar</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <header class="top">
+    <p class="eyebrow" id="eyebrow">Sincronizando com a planilha…</p>
+    <h1 id="viewTitle">Território</h1>
+    <div class="agente-scroll" id="agenteScroll"></div>
+  </header>
+
+  <main id="main">
+    <div class="empty-state" id="loadingState"><div class="glyph">&#8987;</div>Carregando dados da planilha...</div>
+  </main>
+
+  <button class="fab" id="fab" title="Adicionar membro">+</button>
+
+  <nav class="bottom">
+    <button data-view="home" class="active"><span class="ic">&#8962;</span>Início</button>
+    <button data-view="bairros"><span class="ic">&#9776;</span>Bairros</button>
+    <button data-view="coord"><span class="ic">&#9733;</span>Coordenação</button>
+    <button data-view="freq"><span class="ic">&#10003;</span>Frequência</button>
+  </nav>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">Adicionar membro</h2>
+    <div class="field">
+      <label>Nome</label>
+      <input id="fNome" type="text" placeholder="Nome completo">
+    </div>
+    <div class="field">
+      <label>Contato (WhatsApp)</label>
+      <input id="fContato" type="text" placeholder="(88) 9 9999-9999">
+    </div>
+    <div class="field">
+      <label>Função</label>
+      <select id="fFuncao">
+        <option value="comum">Membro — visitas</option>
+        <option value="coord_bairro">Coordenador de Bairro</option>
+        <option value="coord_territorio">Coordenador de Território</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Equipe</label>
+      <select id="fEquipe"></select>
+    </div>
+    <div class="field">
+      <label>Também atende esta equipe (opcional — só em casos de sobreposição)</label>
+      <select id="fBairro"></select>
+    </div>
+    <div class="field">
+      <label>Agente político vinculado</label>
+      <select id="fAgente"></select>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="cancelBtn">Cancelar</button>
+      <button class="btn primary" id="saveBtn">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- ESTADO (carregado da planilha via Apps Script) ----------
+const AGENTE_CORES = {
+  'Deputado Estadual': ['#0F2A57', '#1E62E0'],
+  'Deputado Federal': ['#14171C', '#4A5568'],
+};
+
+let agentes = [];
+let territorio = { id:'', codigo:'', coordenadora:'', contato:'' };
+let bairros = [];
+let equipes = [];
+let membros = [];
+let frequencia = {};
+let carregando = true;
+
+let PIN = null;
+
+function corDoAgente(agente, index){
+  const par = AGENTE_CORES[agente.cargo] || ['#1A2B5E', '#3d5a99'];
+  return par[index % 2];
+}
+
+// ---------- API (fetch puro, sem google.script.run) ----------
+// URL fixa do App da Web — não usar caminho relativo, porque a página é servida
+// via um domínio sandbox (googleusercontent.com) e um caminho relativo resolveria pro lugar errado.
+const EXEC_URL = 'https://script.google.com/macros/s/AKfycbz6x_1FxaoQBVltuFAi2G9DLptx0F9dfI3AqOXsVU3FKLy0-QlNqDqguvGN7ZIu9aMjPg/exec';
+
+function apiGet(action, extraParams){
+  const params = new URLSearchParams({ action, ...extraParams });
+  return fetch(EXEC_URL + '?' + params.toString())
+    .then(r => r.json())
+    .then(res => { if(!res.ok) throw new Error(res.erro || 'Erro desconhecido'); return res.dados; });
+}
+function apiPost(action, payload){
+  return fetch(EXEC_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'}, // evita preflight CORS
+    body: JSON.stringify({ action, pin: PIN, ...payload }),
+  })
+    .then(r => r.json())
+    .then(res => { if(!res.ok) throw new Error(res.erro || 'Erro desconhecido'); return res.dados; });
+}
+
+// ---------- TELA DE PIN ----------
+function tentarEntrar(){
+  const val = document.getElementById('pinInput').value.trim();
+  if(!val){ return; }
+  document.getElementById('pinBtn').textContent = 'Entrando...';
+  document.getElementById('pinError').textContent = '';
+  apiGet('dados', {pin: val})
+    .then(function(dados){
+      PIN = val;
+      localStorage.setItem('territorio_pin', val);
+      document.getElementById('lockScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      aplicarDados(dados);
+    })
+    .catch(function(err){
+      document.getElementById('pinBtn').textContent = 'Entrar';
+      document.getElementById('pinError').textContent = err.message || 'PIN incorreto.';
+      localStorage.removeItem('territorio_pin');
+    });
+}
+document.getElementById('pinBtn').onclick = tentarEntrar;
+document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tentarEntrar(); });
+
+// se já tiver PIN salvo neste dispositivo, tenta entrar direto
+(function tentarAutoLogin(){
+  const salvo = localStorage.getItem('territorio_pin');
+  if(salvo){
+    document.getElementById('pinInput').value = salvo;
+    tentarEntrar();
+  }
+})();
+
+function aplicarDados(dados){
+  territorio = dados.territorios[0] || territorio;
+  bairros = dados.bairros;
+  equipes = dados.equipes;
+  membros = dados.membros;
+  frequencia = dados.frequencia;
+  let contE = 0, contF = 0;
+  agentes = dados.agentes.map(a=>{
+    const idx = a.cargo === 'Deputado Estadual' ? contE++ : contF++;
+    return {...a, cor: corDoAgente(a, idx)};
+  });
+  carregando = false;
+  document.getElementById('eyebrow').textContent = 'Dados sincronizados';
+  renderAll();
+}
+
+// ---------- CARGA / RECARGA (após login, para atualizar depois de salvar/remover) ----------
+function carregarDados(){
+  carregando = true;
+  document.getElementById('eyebrow').textContent = 'Sincronizando com a planilha…';
+  apiGet('dados', {pin: PIN})
+    .then(aplicarDados)
+    .catch(function(err){
+      carregando = false;
+      document.getElementById('eyebrow').textContent = 'Erro ao sincronizar';
+      document.getElementById('main').innerHTML =
+        `<div class="empty-state"><div class="glyph">&#9888;</div>${err.message || 'Falha ao carregar a planilha.'}</div>`;
+    });
+}
+
+let state = { view:'home', agenteFiltro:'todos', equipeSelecionada:null, editingId:null };
+
+const roleLabels = {comum:'Membro', coord_bairro:'Coord. Bairro', coord_territorio:'Coord. Território'};
+
+function initials(nome){ return nome.split(' ').filter(Boolean).slice(0,2).map(p=>p[0]).join('').toUpperCase(); }
+function waLink(numero){ const digits = numero.replace(/\D/g,''); return `https://wa.me/55${digits}`; }
+function agenteById(id){ return agentes.find(a=>a.id===id); }
+function bairroById(id){ return bairros.find(b=>b.id===id); }
+function equipeById(id){ return equipes.find(e=>e.id===id); }
+// membro conta na equipe se ela for a principal OU a secundária (caso raro de sobreposição)
+function membrosDaEquipe(equipeId){
+  return membros.filter(m => (m.equipeId===equipeId || m.equipeSecId===equipeId)
+    && (state.agenteFiltro==='todos' || m.agenteId===state.agenteFiltro));
+}
+function todosMembrosVisiveis(){
+  return membros.filter(m => state.agenteFiltro==='todos' || m.agenteId===state.agenteFiltro);
+}
+
+// ---------- HEADER: filtro de agentes ----------
+function renderAgenteScroll(){
+  const el = document.getElementById('agenteScroll');
+  const all = [{id:'todos', nome:'Todos', cargo:'', cor:'#8a8a8a'}, ...agentes];
+  el.innerHTML = all.map(a => `
+    <button class="agente-chip ${state.agenteFiltro===a.id?'active':''}" data-agente="${a.id}">
+      ${a.id!=='todos' ? `<span class="dot" style="background:${a.cor}"></span>` : ''}${a.nome}
+    </button>`).join('');
+  el.querySelectorAll('[data-agente]').forEach(btn=>{
+    btn.onclick = ()=>{ state.agenteFiltro = btn.dataset.agente; renderAll(); };
+  });
+}
+
+// ---------- VIEWS ----------
+function renderHome(){
+  const total = todosMembrosVisiveis().length;
+  const totalCoord = todosMembrosVisiveis().filter(m=>m.funcao!=='comum').length;
+  document.getElementById('viewTitle').textContent = `Território ${territorio.codigo}`;
+  const porAgente = agentes.map(a=>{
+    const n = membros.filter(m=>m.agenteId===a.id).length;
+    return `<div class="stat-card"><span class="num" style="color:${a.cor}">${n}</span><span class="lbl">${a.nome}</span></div>`;
+  }).join('');
+  return `
+    <div class="coord-block" style="border-left:4px solid var(--gold);">
+      <div class="row-top">
+        <div class="avatar coord-territorio">${initials(territorio.coordenadora)}</div>
+        <div style="flex:1;">
+          <div class="name" style="font-weight:600; font-size:15px;">${territorio.coordenadora}</div>
+          <span class="role-badge coord_territorio">Coordenadora de Território ${territorio.codigo}</span>
+        </div>
+        ${territorio.contato ? `<a class="icon-btn whatsapp" href="${waLink(territorio.contato)}" target="_blank" title="WhatsApp">&#9742;</a>` : ''}
+      </div>
+    </div>
+    <p class="section-title">Resumo</p>
+    <div class="stat-grid">
+      <div class="stat-card"><span class="num">${bairros.length}</span><span class="lbl">Bairros</span></div>
+      <div class="stat-card"><span class="num">${equipes.length}</span><span class="lbl">Equipes</span></div>
+      <div class="stat-card"><span class="num">${total}</span><span class="lbl">Membros</span></div>
+    </div>
+    <p class="section-title">Membros por agente político</p>
+    <div class="stat-grid">${porAgente}</div>
+    <div class="note-box">Conectado à planilha do território em tempo real. Alterações feitas aqui (adicionar, editar, remover, frequência) são gravadas direto no Google Sheets.</div>
+  `;
+}
+
+function renderBairros(){
+  document.getElementById('viewTitle').textContent = state.equipeSelecionada ? equipeById(state.equipeSelecionada).nome : 'Equipes por Bairro';
+  if(!state.equipeSelecionada){
+    if(equipes.length===0) return `<div class="empty-state"><div class="glyph">&#8962;</div>Nenhuma equipe cadastrada ainda.</div>`;
+    return equipes.map(e=>{
+      const b = bairroById(e.bairroId);
+      const eqMembros = membrosDaEquipe(e.id);
+      const agentesDoE = [...new Set(eqMembros.map(m=>m.agenteId))].map(agenteById).filter(Boolean);
+      const compartilhada = membros.some(m=>m.equipeSecId===e.id);
+      return `
+      <button class="card-btn" data-equipe="${e.id}">
+        <div class="bairro-card">
+          <div class="row-top">
+            <div><h3>${b.nome}</h3><div class="meta">${e.nome}${compartilhada?' · equipe compartilhada':''}</div></div>
+            <span class="count-badge">${eqMembros.length} membro${eqMembros.length!==1?'s':''}</span>
+          </div>
+          <div class="agente-tags">
+            ${agentesDoE.map(a=>`<span class="agente-tag" style="background:${a.cor}">${a.nome}</span>`).join('') || '<span class="meta">Sem membros no filtro atual</span>'}
+          </div>
+        </div>
+      </button>`;
+    }).join('');
+  } else {
+    const eq = membrosDaEquipe(state.equipeSelecionada);
+    const groups = ['coord_bairro','coord_territorio','comum'];
+    let html = `<button class="btn ghost" style="margin-bottom:16px; width:auto; padding:9px 16px;" id="backToBairros">&larr; Todas as equipes</button>`;
+    if(eq.length===0){ html += `<div class="empty-state"><div class="glyph">&#128101;</div>Nenhum membro nesta equipe (para o filtro selecionado).</div>`; }
+    groups.forEach(g=>{
+      const list = eq.filter(m=>m.funcao===g);
+      if(list.length===0) return;
+      html += `<p class="section-title">${roleLabels[g]}s</p>` + list.map(memberRowHtml).join('');
+    });
+    return html;
+  }
+}
+
+function memberRowHtml(m){
+  const a = agenteById(m.agenteId);
+  const eqSec = m.equipeSecId ? equipeById(m.equipeSecId) : null;
+  return `
+  <div class="member-row">
+    <div class="avatar ${m.funcao!=='comum'?m.funcao.replace('_','-'):''}">${initials(m.nome)}</div>
+    <div class="member-info">
+      <div class="name">${m.nome}</div>
+      <span class="role-badge ${m.funcao}">${roleLabels[m.funcao]}</span>
+      ${a?`<span class="role-badge" style="background:${a.cor}22; color:${a.cor}; margin-left:4px;">${a.nome}</span>`:''}
+      ${eqSec?`<span class="role-badge" style="background:var(--sky); color:var(--navy-light); margin-left:4px;">também em ${eqSec.nome}</span>`:''}
+    </div>
+    <div class="member-actions">
+      <a class="icon-btn whatsapp" href="${waLink(m.contato)}" target="_blank" title="Abrir WhatsApp">&#9742;</a>
+      <button class="icon-btn edit" data-edit="${m.id}" title="Editar">&#9998;</button>
+      <button class="icon-btn remove" data-remove="${m.id}" title="Remover">&#10005;</button>
+    </div>
+  </div>`;
+}
+
+function renderCoord(){
+  document.getElementById('viewTitle').textContent = 'Coordenação';
+  const coordsBairro = todosMembrosVisiveis().filter(m=>m.funcao==='coord_bairro');
+  let html = `
+    <p class="section-title">Coordenadora de Território</p>
+    <div class="coord-block">
+      <div class="row-top">
+        <div class="avatar coord-territorio">${initials(territorio.coordenadora)}</div>
+        <div style="flex:1;">
+          <div class="name" style="font-weight:600; font-size:15px;">${territorio.coordenadora}</div>
+          <span class="role-badge coord_territorio">${territorio.codigo}</span>
+        </div>
+        ${territorio.contato ? `<a class="icon-btn whatsapp" href="${waLink(territorio.contato)}" target="_blank" title="WhatsApp">&#9742;</a>` : ''}
+      </div>
+      <div class="bairros-cover">${bairros.map(b=>`<span class="coverage-tag">${b.nome}</span>`).join('')}</div>
+    </div>
+    <p class="section-title">Coordenadores de Bairro</p>
+  `;
+  if(coordsBairro.length===0){ html += `<div class="empty-state"><div class="glyph">&#9733;</div>Nenhum coordenador de bairro cadastrado.</div>`; }
+  html += coordsBairro.map(m=>{
+    const eqPrincipal = equipeById(m.equipeId);
+    const bPrincipal = eqPrincipal ? bairroById(eqPrincipal.bairroId) : null;
+    const eqSec = m.equipeSecId ? equipeById(m.equipeSecId) : null;
+    const bSec = eqSec ? bairroById(eqSec.bairroId) : null;
+    const cobertura = [bPrincipal, bSec].filter(Boolean);
+    const a = agenteById(m.agenteId);
+    return `
+    <div class="coord-block">
+      <div class="row-top">
+        <div class="avatar coord-bairro">${initials(m.nome)}</div>
+        <div style="flex:1;">
+          <div class="name" style="font-weight:600; font-size:15px;">${m.nome}</div>
+          <span class="role-badge coord_bairro">Coord. Bairro</span>
+          ${a?`<span class="role-badge" style="background:${a.cor}22; color:${a.cor}; margin-left:4px;">${a.nome}</span>`:''}
+        </div>
+        <a class="icon-btn whatsapp" href="${waLink(m.contato)}" target="_blank" title="WhatsApp">&#9742;</a>
+      </div>
+      <div class="bairros-cover">${cobertura.map(b=>`<span class="coverage-tag">${b.nome}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+  return html;
+}
+
+function renderFreq(){
+  document.getElementById('viewTitle').textContent = 'Frequência Digital';
+  const today = new Date().toISOString().slice(0,10);
+  if(!state.freqData) state.freqData = today;
+  if(!state.freqEquipe) state.freqEquipe = equipes[0]?.id || '';
+  const list = membrosDaEquipe(state.freqEquipe);
+  const marcados = list.filter(m => frequencia[`${m.id}_${state.freqData}`]).length;
+  return `
+    <div class="freq-toolbar">
+      <select id="freqEquipeSel">${equipes.map(e=>`<option value="${e.id}" ${e.id===state.freqEquipe?'selected':''}>${e.nome}</option>`).join('')}</select>
+      <input type="date" id="freqDataInput" value="${state.freqData}">
+    </div>
+    <div class="freq-summary">${marcados}/${list.length} registrados em ${state.freqData.split('-').reverse().join('/')}</div>
+    ${list.length===0 ? `<div class="empty-state"><div class="glyph">&#10003;</div>Nenhum membro nesta equipe.</div>` :
+      list.map(m=>{
+        const key = `${m.id}_${state.freqData}`;
+        const status = frequencia[key];
+        return `
+        <div class="freq-row">
+          <div class="avatar ${m.funcao!=='comum'?m.funcao.replace('_','-'):''}" style="width:30px;height:30px;font-size:11px;">${initials(m.nome)}</div>
+          <div class="name">${m.nome}</div>
+          <div class="toggle-group">
+            <button class="p ${status==='presente'?'active':''}" data-freq="${key}" data-status="presente">Presente</button>
+            <button class="f ${status==='falta'?'active':''}" data-freq="${key}" data-status="falta">Falta</button>
+          </div>
+        </div>`;
+      }).join('')
+    }
+    <div class="note-box">Substitui o preenchimento manual das colunas "Dia" da folha de frequência em papel. A assinatura física continua sendo coletada normalmente — este painel é o controle interno de presença por data.</div>
+  `;
+}
+
+// ---------- RENDER MAIN ----------
+function renderAll(){
+  renderAgenteScroll();
+  const main = document.getElementById('main');
+  if(state.view==='home') main.innerHTML = renderHome();
+  else if(state.view==='bairros') main.innerHTML = renderBairros();
+  else if(state.view==='coord') main.innerHTML = renderCoord();
+  else if(state.view==='freq') main.innerHTML = renderFreq();
+
+  document.getElementById('fab').style.display = (state.view==='bairros' || state.view==='home') ? 'flex' : 'none';
+  document.querySelectorAll('nav.bottom button').forEach(b=>b.classList.toggle('active', b.dataset.view===state.view));
+
+  attachViewHandlers();
+}
+
+function attachViewHandlers(){
+  document.querySelectorAll('[data-equipe]').forEach(el=>{
+    el.onclick = ()=>{ state.equipeSelecionada = el.dataset.equipe; renderAll(); };
+  });
+  const back = document.getElementById('backToBairros');
+  if(back) back.onclick = ()=>{ state.equipeSelecionada=null; renderAll(); };
+
+  document.querySelectorAll('[data-edit]').forEach(el=>{
+    el.onclick = ()=> openSheet(el.dataset.edit);
+  });
+  document.querySelectorAll('[data-remove]').forEach(el=>{
+    el.onclick = ()=>{
+      if(confirm('Remover este membro da equipe?')){
+        const id = el.dataset.remove;
+        apiPost('removerMembro', {id})
+          .then(()=> carregarDados())
+          .catch(err=> alert('Erro ao remover: ' + err.message));
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-freq]').forEach(el=>{
+    el.onclick = ()=>{
+      const key = el.dataset.freq, status = el.dataset.status;
+      const membroId = key.split('_')[0];
+      const data = key.slice(membroId.length + 1);
+      const novoStatus = frequencia[key]===status ? null : status;
+      frequencia[key] = novoStatus; // atualização otimista, imediata na tela
+      renderAll();
+
+      const m = membros.find(x=>x.id===membroId);
+      const eq = m ? equipeById(m.equipeId) : null;
+      if(m && novoStatus){
+        apiPost('registrarFrequencia', {membroNome: m.nome, equipeNome: eq ? eq.nome : '', data, status: novoStatus})
+          .catch(err=> alert('Erro ao salvar frequência: ' + err.message));
+      }
+    };
+  });
+
+  const fe = document.getElementById('freqEquipeSel');
+  if(fe) fe.onchange = ()=>{ state.freqEquipe = fe.value; renderAll(); };
+  const fd = document.getElementById('freqDataInput');
+  if(fd) fd.onchange = ()=>{ state.freqData = fd.value; renderAll(); };
+}
+
+// ---------- SHEET / MODAL ----------
+function fillSelects(){
+  document.getElementById('fEquipe').innerHTML = equipes.map(e=>`<option value="${e.id}">${e.nome}</option>`).join('');
+  document.getElementById('fBairro').innerHTML =
+    `<option value="">— nenhuma —</option>` +
+    equipes.map(e=>`<option value="${e.id}">${e.nome}</option>`).join('');
+  document.getElementById('fAgente').innerHTML = agentes.map(a=>`<option value="${a.id}">${a.nome} — ${a.cargo}</option>`).join('');
+}
+
+function openSheet(editId){
+  fillSelects();
+  state.editingId = editId || null;
+  document.getElementById('sheetTitle').textContent = editId ? 'Editar membro' : 'Adicionar membro';
+  if(editId){
+    const m = membros.find(x=>x.id===editId);
+    document.getElementById('fNome').value = m.nome;
+    document.getElementById('fContato').value = m.contato;
+    document.getElementById('fFuncao').value = m.funcao;
+    document.getElementById('fEquipe').value = m.equipeId;
+    document.getElementById('fBairro').value = m.equipeSecId || '';
+    document.getElementById('fAgente').value = m.agenteId;
+  } else {
+    document.getElementById('fNome').value = '';
+    document.getElementById('fContato').value = '';
+    document.getElementById('fFuncao').value = 'comum';
+    document.getElementById('fEquipe').value = state.equipeSelecionada || equipes[0]?.id || '';
+    document.getElementById('fBairro').value = '';
+    document.getElementById('fAgente').value = agentes[0]?.id || '';
+  }
+  document.getElementById('overlay').classList.add('open');
+}
+function closeSheet(){ document.getElementById('overlay').classList.remove('open'); }
+
+document.getElementById('cancelBtn').onclick = closeSheet;
+document.getElementById('overlay').onclick = (e)=>{ if(e.target.id==='overlay') closeSheet(); };
+document.getElementById('saveBtn').onclick = ()=>{
+  const nome = document.getElementById('fNome').value.trim();
+  if(!nome){ alert('Informe o nome.'); return; }
+  const equipeSecVal = document.getElementById('fBairro').value;
+  const equipe = equipeById(document.getElementById('fEquipe').value);
+  const equipeSec = equipeSecVal ? equipeById(equipeSecVal) : null;
+  const agente = agenteById(document.getElementById('fAgente').value);
+
+  const payload = {
+    id: state.editingId || '',
+    nome,
+    contato: document.getElementById('fContato').value.trim(),
+    funcao: document.getElementById('fFuncao').value,
+    equipeNome: equipe ? equipe.nome : '',
+    equipeSecNome: equipeSec ? equipeSec.nome : '',
+    agenteNome: agente ? agente.nome : '',
+  };
+
+  document.getElementById('saveBtn').textContent = 'Salvando...';
+  apiPost('salvarMembro', {membro: payload})
+    .then(()=>{
+      document.getElementById('saveBtn').textContent = 'Salvar';
+      closeSheet();
+      carregarDados();
+    })
+    .catch(err=>{
+      document.getElementById('saveBtn').textContent = 'Salvar';
+      alert('Erro ao salvar: ' + err.message);
+    });
+};
+
+document.getElementById('fab').onclick = ()=> openSheet(null);
+
+document.querySelectorAll('nav.bottom button').forEach(btn=>{
+  btn.onclick = ()=>{ state.view = btn.dataset.view; if(btn.dataset.view!=='bairros') state.equipeSelecionada=null; renderAll(); };
+});
+
+</script>
+</body>
+</html>
