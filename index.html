@@ -503,10 +503,12 @@ function renderBairros(){
           <div class="agente-tags">
             ${agentesDoE.map(a=>`<span class="agente-tag" style="background:${a.cor}">${a.nome}</span>`).join('') || '<span class="meta">Sem membros no filtro atual</span>'}
           </div>
+          ${e.observacoes ? `<div class="meta" style="margin-top:8px; display:flex; gap:5px; align-items:flex-start;"><span>&#128221;</span><span>${e.observacoes}</span></div>` : ''}
         </div>
       </button>`;
     }).join('');
   } else {
+    const equipeAtual = equipeById(state.equipeSelecionada);
     const eq = membrosDaEquipe(state.equipeSelecionada);
     const groups = ['coord_bairro','coord_territorio','comum'];
     let html = `<button class="btn ghost" style="margin-bottom:16px; width:auto; padding:9px 16px;" id="backToBairros">&larr; Todas as equipes</button>`;
@@ -516,6 +518,13 @@ function renderBairros(){
       if(list.length===0) return;
       html += `<p class="section-title">${roleLabels[g]}s</p>` + list.map(memberRowHtml).join('');
     });
+    html += `
+      <p class="section-title">Observações</p>
+      <div class="coord-block">
+        <textarea id="obsEquipeInput" placeholder="Anotações sobre esta equipe/bairro (ex.: dificuldades, pedidos, situações do dia a dia)..."
+          style="width:100%; min-height:90px; padding:11px 12px; border-radius:10px; border:1.5px solid #e4e0d4; background:var(--ivory); font-family:inherit; font-size:14px; resize:vertical;">${equipeAtual ? (equipeAtual.observacoes || '') : ''}</textarea>
+        <button class="btn primary" id="btnSalvarObs" style="width:100%; margin-top:10px;">Salvar observação</button>
+      </div>`;
     return html;
   }
 }
@@ -646,6 +655,21 @@ function attachViewHandlers(){
     const dataInicio = document.getElementById('freqPdfInicio').value;
     const dataFim = document.getElementById('freqPdfFim').value;
     gerarRelatorio('pdfFrequencia', {dataInicio, dataFim}, btnFreq);
+  };
+
+  const btnSalvarObs = document.getElementById('btnSalvarObs');
+  if(btnSalvarObs) btnSalvarObs.onclick = ()=>{
+    const texto = document.getElementById('obsEquipeInput').value.trim();
+    const textoOriginal = btnSalvarObs.textContent;
+    btnSalvarObs.textContent = 'Salvando...';
+    btnSalvarObs.disabled = true;
+    apiPost('salvarObservacaoEquipe', {equipeId: state.equipeSelecionada, texto})
+      .then(()=> carregarDados())
+      .catch(err=>{
+        alert('Erro ao salvar observação: ' + err.message);
+        btnSalvarObs.textContent = textoOriginal;
+        btnSalvarObs.disabled = false;
+      });
   };
   const back = document.getElementById('backToBairros');
   if(back) back.onclick = ()=>{ state.equipeSelecionada=null; renderAll(); };
