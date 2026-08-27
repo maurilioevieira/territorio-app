@@ -236,6 +236,7 @@
     <button data-view="coord"><span class="ic">&#9733;</span>Coordenação</button>
     <button data-view="freq"><span class="ic">&#10003;</span>Frequência</button>
     <button data-view="mapa"><span class="ic">&#128205;</span>Mapa</button>
+    <button data-view="votos"><span class="ic">&#128202;</span>Votos</button>
   </nav>
 </div>
 
@@ -291,6 +292,8 @@ let equipes = [];
 let membros = [];
 let frequencia = {};
 let enderecos = [];
+let votos = [];
+let votosCarregados = false;
 let carregando = true;
 
 let PIN = null;
@@ -721,6 +724,82 @@ function enderecoRowHtml(e){
   </div>`;
 }
 
+function carregarVotos(){
+  apiGet('votos', {pin: PIN})
+    .then(function(dados){
+      votos = dados;
+      votosCarregados = true;
+      renderAll();
+    })
+    .catch(function(err){
+      document.getElementById('main').innerHTML = `<div class="empty-state"><div class="glyph">&#9888;</div>${err.message}</div>`;
+    });
+}
+
+function renderVotos(){
+  document.getElementById('viewTitle').textContent = 'Base Eleitoral 2022';
+
+  if(!votosCarregados){
+    if(!state.votosCarregando){
+      state.votosCarregando = true;
+      carregarVotos();
+    }
+    return `<div class="empty-state"><div class="glyph">&#8987;</div>Carregando base eleitoral 2022 (pode levar alguns segundos)...</div>`;
+  }
+  state.votosCarregando = false;
+
+  const candidatos = [...new Set(votos.map(v=>v.candidato))];
+  if(!state.votosCandidato) state.votosCandidato = candidatos[0] || '';
+  const lista = votos.filter(v=>v.candidato===state.votosCandidato);
+
+  const busca = (state.votosBusca || '').toLowerCase().trim();
+  const filtrada = busca ? lista.filter(v =>
+    v.local.toLowerCase().includes(busca) ||
+    v.endereco.toLowerCase().includes(busca) ||
+    String(v.secao).includes(busca)
+  ) : lista;
+
+  const totalVotos = filtrada.reduce((s,v)=>s+v.votos, 0);
+  const baixos = filtrada.filter(v=>v.votos<=1).length;
+  const metasPreenchidas = filtrada.filter(v=>v.meta2026!=null).length;
+
+  const porLocal = {};
+  filtrada.forEach(v=>{ (porLocal[v.local] = porLocal[v.local] || []).push(v); });
+  const locais = Object.keys(porLocal).sort();
+
+  return `
+    <div class="agente-scroll" style="margin-bottom:14px;">
+      ${candidatos.map(c=>`<button class="agente-chip ${c===state.votosCandidato?'active':''}" data-votos-cand="${c}">${c}</button>`).join('')}
+    </div>
+    <input type="text" id="votosBuscaInput" placeholder="Buscar por local, endereço ou nº da seção..." value="${state.votosBusca||''}"
+      style="width:100%; padding:11px 13px; border-radius:11px; border:1.5px solid #e4e0d4; background:var(--white); font-family:inherit; font-size:14px; margin-bottom:12px;">
+    <div class="freq-summary">${filtrada.length} seções · ${totalVotos} votos no total · <span style="color:var(--danger)">${baixos} com ≤1 voto</span> · ${metasPreenchidas} com meta definida</div>
+
+    ${locais.length===0 ? `<div class="empty-state"><div class="glyph">&#128202;</div>Nenhum resultado pra essa busca.</div>` :
+      locais.map(local=>{
+        const secoes = porLocal[local].sort((a,b)=> a.secao - b.secao);
+        return `<p class="section-title" style="color:var(--navy); font-family:'Fraunces',serif; text-transform:none; font-size:13.5px; letter-spacing:0; line-height:1.4;">${local}</p>`
+          + secoes.map(votoRowHtml).join('');
+      }).join('')
+    }
+  `;
+}
+
+function votoRowHtml(v){
+  const baixo = v.votos <= 1;
+  return `
+  <div class="member-row" style="${baixo ? 'background:#fbeceb; border:1px solid #f2c9c5;' : ''}">
+    <div class="avatar" style="background:${baixo?'#a3403a22':'var(--sky)'}; color:${baixo?'var(--danger)':'var(--navy)'};">${v.secao}</div>
+    <div class="member-info">
+      <div class="name">Seção ${v.secao}${baixo?' ⚠':''}</div>
+      <div class="meta">${v.votos} voto${v.votos!==1?'s':''} · ${(v.percentual*100).toFixed(1)}% da seção · ${v.endereco}</div>
+    </div>
+    <input type="number" min="0" data-meta-id="${v.id}" value="${v.meta2026!=null?v.meta2026:''}" placeholder="Meta"
+      style="width:62px; padding:8px 6px; border-radius:9px; border:1.5px solid #e4e0d4; text-align:center; font-family:'IBM Plex Mono',monospace; font-size:13px; flex-shrink:0;">
+  </div>`;
+}
+
+
 // ---------- RENDER MAIN ----------
 function renderAll(){
   renderAgenteScroll();
@@ -730,6 +809,7 @@ function renderAll(){
   else if(state.view==='coord') main.innerHTML = renderCoord();
   else if(state.view==='freq') main.innerHTML = renderFreq();
   else if(state.view==='mapa') main.innerHTML = renderMapa();
+  else if(state.view==='votos') main.innerHTML = renderVotos();
 
   document.getElementById('fab').style.display = (state.view==='bairros' || state.view==='home') ? 'flex' : 'none';
   document.querySelectorAll('nav.bottom button').forEach(b=>b.classList.toggle('active', b.dataset.view===state.view));
@@ -805,6 +885,36 @@ function attachViewHandlers(){
 
   const btnPdfMapa = document.getElementById('btnPdfMapa');
   if(btnPdfMapa) btnPdfMapa.onclick = ()=> gerarRelatorio('pdfMapeamento', {equipeId: state.mapaEquipe}, btnPdfMapa);
+
+  document.querySelectorAll('[data-votos-cand]').forEach(el=>{
+    el.onclick = ()=>{ state.votosCandidato = el.dataset.votosCand; renderAll(); };
+  });
+
+  const votosBuscaInput = document.getElementById('votosBuscaInput');
+  if(votosBuscaInput) votosBuscaInput.oninput = ()=>{
+    state.votosBusca = votosBuscaInput.value;
+    clearTimeout(state.votosBuscaTimeout);
+    state.votosBuscaTimeout = setTimeout(()=>{
+      renderAll();
+      const el = document.getElementById('votosBuscaInput');
+      if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    }, 350);
+  };
+
+  document.querySelectorAll('[data-meta-id]').forEach(el=>{
+    el.onchange = ()=>{
+      const id = el.dataset.metaId;
+      const valor = el.value;
+      apiPost('salvarMetaVoto', {id, meta: valor})
+        .then(()=>{
+          const item = votos.find(v=>v.id===id);
+          if(item) item.meta2026 = valor==='' ? null : Number(valor);
+        })
+        .catch(err=>{
+          alert('Erro ao salvar meta: ' + err.message);
+        });
+    };
+  });
 
   const back = document.getElementById('backToBairros');
   if(back) back.onclick = ()=>{ state.equipeSelecionada=null; renderAll(); };
