@@ -622,7 +622,7 @@ function renderFreq(){
         const key = `${m.id}_${state.freqData}`;
         const status = frequencia[key];
         return `
-        <div class="freq-row">
+        <div class="freq-row" style="${status==='falta'?'background:#fbeceb; border:1px solid #f2c9c5;':''}">
           <div class="avatar ${m.funcao!=='comum'?m.funcao.replace('_','-'):''}" style="width:30px;height:30px;font-size:11px;">${initials(m.nome)}</div>
           <div class="name">${m.nome}</div>
           <div class="toggle-group">
@@ -632,6 +632,17 @@ function renderFreq(){
         </div>`;
       }).join('')
     }
+
+    <p class="section-title">Relatório desta equipe</p>
+    <div class="coord-block">
+      <label style="display:block; font-size:12px; font-weight:600; color:#6b6b6b; margin-bottom:6px; text-transform:uppercase; letter-spacing:.03em;">Período</label>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="date" id="freqTabPdfInicio" style="flex:1; padding:10px; border-radius:9px; border:1.5px solid #e4e0d4; background:var(--ivory); font-family:inherit;">
+        <input type="date" id="freqTabPdfFim" style="flex:1; padding:10px; border-radius:9px; border:1.5px solid #e4e0d4; background:var(--ivory); font-family:inherit;">
+      </div>
+      <button class="btn primary" id="btnPdfFreqEquipe" style="width:100%;">Gerar PDF de frequência desta equipe</button>
+    </div>
+
     <div class="note-box">Substitui o preenchimento manual das colunas "Dia" da folha de frequência em papel. A assinatura física continua sendo coletada normalmente — este painel é o controle interno de presença por data.</div>
   `;
 }
@@ -839,6 +850,13 @@ function attachViewHandlers(){
     const dataInicio = document.getElementById('freqPdfInicio').value;
     const dataFim = document.getElementById('freqPdfFim').value;
     gerarRelatorio('pdfFrequencia', {dataInicio, dataFim}, btnFreq);
+  };
+
+  const btnPdfFreqEquipe = document.getElementById('btnPdfFreqEquipe');
+  if(btnPdfFreqEquipe) btnPdfFreqEquipe.onclick = ()=>{
+    const dataInicio = document.getElementById('freqTabPdfInicio').value;
+    const dataFim = document.getElementById('freqTabPdfFim').value;
+    gerarRelatorio('pdfFrequencia', {dataInicio, dataFim, equipeId: state.freqEquipe}, btnPdfFreqEquipe);
   };
 
   const btnSalvarObs = document.getElementById('btnSalvarObs');
